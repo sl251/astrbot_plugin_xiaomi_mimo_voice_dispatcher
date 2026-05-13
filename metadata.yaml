@@ -2,8 +2,8 @@ name: astrbot_plugin_xiaomi_mimo_voice_dispatcher
 author: sl251
 version: 0.3.0
 astrbot_version: ">=4.9.2"
-description: "Xiaomi MiMo TTS 函数工具插件，支持内置音色、音色设计和预设样本克隆语音。"
-desc: "Xiaomi MiMo TTS 函数工具插件，支持内置音色、音色设计和预设样本克隆语音。"
+description: "为 AstrBot 提供 Xiaomi MiMo TTS 语音合成能力的函数工具插件"
+desc: "为 AstrBot 提供 Xiaomi MiMo TTS 语音合成能力的函数工具插件"
 entry: main.py
 homepage: https://github.com/sl251/astrbot_plugin_xiaomi_mimo_voice_dispatcher
 repo: https://github.com/sl251/astrbot_plugin_xiaomi_mimo_voice_dispatcher
