@@ -1,151 +1,162 @@
 # astrbot_plugin_xiaomi_mimo_voice_dispatcher
 
-把 Xiaomi MiMo TTS 接入 AstrBot 的函数工具插件，让模型在适合语音表达时调用 `mimo_tts_speak` 直接发送语音消息。
+为 AstrBot 提供 Xiaomi MiMo TTS 语音合成能力的函数工具插件。
 
-插件聚焦“发语音”，不会从普通聊天消息、语音消息或附件里自动提取克隆样本，避免接入端下载、转码、上传阶段产生大段 base64 日志。
+> **💡 开发缘起**
+> 前段时间小米开放了免费一个月的 Token Plan API 额度申请活动，里面居然有免费tts模型，这下不得不用了，但是插件市场目前的语音插件貌似不能让模型自己发声，所以这个插件就来了
 
-## 功能
+本插件的核心设计理念是“把发语音的决定权交给模型”。它不仅仅是一个被动的文字转语音（TTS）转换器，而是让大模型在对话中感知到情绪波动、需要表达特定语气，或者认为当前语境（如晚安问候、长篇故事、情感安抚）更适合用语音沟通时，能够自主调用 `mimo_tts_speak` 工具，直接对用户开口说话，带来更生动、拟人的交互体验。
 
-- 注册 `mimo_tts_speak` LLM 函数工具，由模型按需发送语音。
-- 支持 `builtin`、`voice_design`、`voice_clone` 三种模式。
-- 支持管理员为当前会话绑定本地 voice clone 样本。
-- 成功发出语音后工具返回 `None`，按 AstrBot 原生机制结束 Agent Loop，避免工具成功后再触发一轮文字收尾。
-- 管理命令默认仅管理员可用。
+## ✨ 核心功能
 
-## 配置
+* **🤖 模型自主决策**：注册 `mimo_tts_speak` 函数工具，模型根据上下文语境，自主判断在最恰当的时机发送语音消息。
+* **🎛️ 多模式支持**：完整支持 `builtin`（内置）、`voice_design`（音色设计）、`voice_clone`（声音克隆）三种合成模式。
+* **🎯 会话级克隆**：支持管理员为当前特定会话动态绑定本地 Voice Clone 音频样本，实现定制化对话。
+* **🔒 权限管控**：管理命令默认仅管理员可用。
 
-至少填写：
+---
 
-- `api_key`: MiMo API Key。
+## ⚙️ 插件配置
 
-常用可选项：
+### 必填项
 
-- `api_base`: MiMo API 地址，默认 `https://token-plan-cn.xiaomimimo.com/v1`。
-- `request_timeout_seconds`: 调用 MiMo API 的读取超时时间，默认 `60` 秒。网络不稳定时可调到 `90`，想更快失败可调到 `30`。
-- `admin_ids`: 允许使用管理命令的用户 ID。多个 ID 用英文逗号分隔。
-- `builtin_model`: 普通 TTS 模型 ID，默认 `mimo-v2.5-tts`。
-- `voice_design_model`: 音色设计模型 ID，默认 `mimo-v2.5-tts-voicedesign`。
-- `voice_clone_model`: 声音克隆模型 ID，默认 `mimo-v2.5-tts-voiceclone`。
-- `builtin_voice`: `builtin` 模式默认内置音色。
-- `voice_clone_sample_path`: `voice_clone` 模式默认本地样本路径，支持 `mp3`、`wav`、`m4a`、`flac`、`ogg`。
+* **`api_key`**: 你的 MiMo API Key。
 
-## 内置音色
+### 常用可选项
 
-- `mimo_default`: 平台默认音色
-- `冰糖`: 中文音色
-- `茉莉`: 中文音色
-- `苏打`: 中文音色
-- `白桦`: 中文音色
-- `Mia`: 英文女声
-- `Chloe`: 英文女声
-- `Milo`: 英文男声
-- `Dean`: 英文男声
+* **`api_base`**: MiMo API 地址，默认 `[https://token-plan-cn.xiaomimimo.com/v1](https://token-plan-cn.xiaomimimo.com/v1)`。
+* **`request_timeout_seconds`**: API 读取超时时间，默认 `60` 秒。网络不稳定时可调至 `90`，需快速失败可调至 `30`。
+* **`admin_ids`**: 允许使用管理命令的用户 ID 列表（英文逗号分隔）。优先使用 AstrBot 事件自带的管理员判断，如不生效请在此显式填写。
+* **模型设置**:
+* `builtin_model`: 普通 TTS 模型 ID（默认 `mimo-v2.5-tts`）。
+* `voice_design_model`: 音色设计模型 ID（默认 `mimo-v2.5-tts-voicedesign`）。
+* `voice_clone_model`: 声音克隆模型 ID（默认 `mimo-v2.5-tts-voiceclone`）。
 
-兼容旧配置：如果模型或旧配置传入 `default_zh`，插件会自动映射到 `茉莉`；传入 `default_en` 会自动映射到 `Mia`。
 
-## 使用方式
+* **默认音色/样本**:
+* `builtin_voice`: `builtin` 模式的默认内置音色名称。
+* `voice_clone_sample_path`: `voice_clone` 模式的默认本地样本路径（支持 `mp3`, `wav`, `m4a`, `flac`, `ogg`）。
 
-### 使用内置音色
 
-在插件设置里修改：
 
-```text
+---
+
+## 🎙️ 内置音色映射表
+
+| 音色名称 | 适用语言 | 备注 |
+| --- | --- | --- |
+| `mimo_default` | 中/英 | 平台默认音色 |
+| `冰糖` / `茉莉` / `苏打` / `白桦` | 中文 | 中文女声/男声等 |
+| `Mia` / `Chloe` | 英文 | 英文女声 |
+| `Milo` / `Dean` | 英文 | 英文男声 |
+
+> **💡 兼容性提示**：如果模型或旧版配置传入了 `default_zh`，插件会自动映射到 `茉莉`；传入 `default_en` 会自动映射到 `Mia`。
+
+---
+
+## 🛠️ 函数工具参数 (`mimo_tts_speak`)
+
+当大模型决定发送语音时，会调用此工具。参数定义如下：
+
+| 参数名 | 必填 | 说明 |
+| --- | --- | --- |
+| `text` | 是 | 要合成并发送的文本内容。 |
+| `mode` | 是 | 合成模式：`builtin` / `voice_design` / `voice_clone`。 |
+| `instruction` | 否 | 风格指令；在 `voice_design` 模式下作为音色设计的提示词描述。 |
+| `voice` | 否 | 内置音色 ID（仅 `builtin` 模式使用）。 |
+| `clone_sample` | 否 | 本地音频样本的绝对路径（仅 `voice_clone` 模式使用），**不支持 data URI 或 base64**。 |
+| `send_text` | 否 | 是否同时发送对应的文字消息，默认 `false`。 |
+| `audio_format` | 否 | 当前固定使用 `wav`（AstrBot 发送语音最稳定的格式）。 |
+
+---
+
+## 🚀 使用指南
+
+### 1. 使用内置音色 (`builtin`)
+
+在插件设置面板填写默认音色：
+
+```ini
 builtin_voice = 茉莉
+
 ```
 
-模型调用工具时使用：
+模型在回复时即可直接调用：
 
-```text
+```python
 mimo_tts_speak(mode="builtin", text="要说的话")
+
 ```
 
-### 使用配置里的克隆样本
+### 2. 使用全局克隆样本 (`voice_clone`)
 
-准备一个本地音频文件，然后在插件设置里填写：
+准备好本地音频文件，在插件设置中配置路径：
 
-```text
+```ini
 voice_clone_sample_path = D:\voice\bot_sample.wav
+
 ```
 
-之后用户要求使用预设声音时，模型可以调用：
+模型调用：
 
-```text
+```python
 mimo_tts_speak(mode="voice_clone", text="要说的话")
+
 ```
 
-### 管理员临时绑定会话样本
+### 3. 会话级动态绑定（管理员功能）
 
-管理员发送：
+管理员可在聊天中直接为**当前会话**绑定优先使用的克隆样本（仅支持服务器本地文件路径）：
 
-```text
-/mimo_clone_bind D:\voice\sample.wav
-```
+* 绑定：`/mimo_clone_bind D:\voice\sample.wav`
+* 查看当前状态：`/mimo_clone_status`
+* 清除绑定：`/mimo_clone_clear`
 
-当前会话会优先使用这份样本。查看和清除：
+### 4. 工具调用时指定特殊样本
 
-```text
-/mimo_clone_status
-/mimo_clone_clear
-```
+在少量特殊场景下，大模型可以主动传入指定的本地路径来发声：
 
-这个方式只接受本地文件路径，不会自动从聊天附件里下载音频。
-
-### 工具调用时指定样本
-
-少量特殊场景可以在工具调用里传本地样本路径：
-
-```text
+```python
 mimo_tts_speak(
   mode="voice_clone",
   text="今晚早点休息。",
   clone_sample="D:\voice\soft.wav"
 )
+
 ```
 
-`clone_sample` 只支持本地音频文件路径，不支持 data URI 或 base64。
+---
 
-## 函数工具参数
+## 💻 管理命令一览
 
-工具名：
+* `/mimo_tts_status` - 查看当前 TTS 服务状态与配置
+* `/mimo_tts_voices` - 列出所有可用的内置音色
+* `/mimo_tts_say <内容>` - 手动测试语音合成
+* `/mimo_clone_bind <本地路径>` - 为当前会话绑定克隆样本
+* `/mimo_clone_status` - 查看当前会话的克隆样本绑定情况
+* `/mimo_clone_clear` - 清除当前会话的克隆样本绑定
 
-- `mimo_tts_speak`
+---
 
-主要参数：
+## 📌 技术细节与边界
 
-- `text`: 要合成并发送的文本。
-- `mode`: `builtin` / `voice_design` / `voice_clone`。
-- `instruction`: 风格指令；在 `voice_design` 模式下作为音色设计描述。
-- `voice`: 内置音色 ID，仅 `builtin` 模式使用。
-- `clone_sample`: 本地样本路径，仅 `voice_clone` 模式使用。
-- `send_text`: 是否同时发送文字。默认 `false`。
-- `audio_format`: 当前固定使用 `wav`，这是 AstrBot 发送语音最稳定的格式。
+1. **工具执行机制**：
+* `mimo_tts_speak` 会在工具内部直接调用 `event.send()` 发送语音。发送成功后工具会返回 `None`。
+* **注意**：如果你在日志中看到 *“mimo_tts_speak 没有返回值，或者已将结果直接发送给用户”*，这**并非报错**，而是预期行为，意味着模型的一轮语音表达已经完整结束。
+* 如果大模型在调用工具前已经生成了一段文字（同一轮交互内），插件无法撤回那段前置文字。
 
-## 管理命令
 
-- `/mimo_tts_status`
-- `/mimo_tts_voices`
-- `/mimo_tts_say 你好，这是测试语音`
-- `/mimo_clone_bind D:\voice\sample.wav`
-- `/mimo_clone_status`
-- `/mimo_clone_clear`
+2. **音频格式与依赖**：
+* 最终发送给用户的语音固定使用 `wav` 格式。
+* `mp3`, `m4a`, `flac`, `ogg` 均可作为克隆样本的输入。
+* 非常见格式插件会尝试调用系统 `ffmpeg` 转为 `wav`。**需确保宿主机已安装 `ffmpeg**`，否则转码会失败。
+* 如果样本为 SILK 格式，需要环境中安装可选依赖 `pysilk`，否则无法解码。
 
-## AstrBot 机制说明
 
-`mimo_tts_speak` 会在工具内部调用 `event.send()` 直接发送语音。发送成功后工具返回 `None`，这是 AstrBot tool runner 的原生约定：工具没有返回值，或已经把结果直接发送给用户，Agent Loop 会结束。
 
-因此日志里出现类似“`mimo_tts_speak 没有返回值，或者已将结果直接发送给用户`”时通常不是错误，而是插件按预期结束工具循环。
+---
 
-如果模型在调用工具前已经输出了一句文字，插件无法在工具返回阶段撤回那句前置文本；这属于 AstrBot tool loop 对“同一轮文本 + 工具调用”的处理方式。插件会通过系统提示尽量避免这种情况。
+## 🔗 相关链接
 
-## 依赖和边界
-
-- 发送语音固定使用 `wav`。
-- `mp3`、`m4a`、`flac`、`ogg` 可作为 voice clone 样本输入格式。
-- 非常见格式会尝试用系统 `ffmpeg` 转成 `wav`。如果机器没有安装 `ffmpeg`，相关转码会失败。
-- SILK 样本需要可选依赖 `pysilk`，否则无法解码。
-- 管理命令的管理员识别优先使用 AstrBot 事件自带判断；如果不生效，请在 `admin_ids` 里显式填写用户 ID。
-
-## 相关链接
-
-- MiMo 官方文档: https://platform.xiaomimimo.com/docs/zh-CN/usage-guide/speech-synthesis-v2.5
-- 插件仓库: https://github.com/sl251/astrbot_plugin_xiaomi_mimo_voice_dispatcher
+* [MiMo 官方文档](https://platform.xiaomimimo.com/docs/zh-CN/usage-guide/speech-synthesis-v2.5)
+* [插件 GitHub 仓库](https://github.com/sl251/astrbot_plugin_xiaomi_mimo_voice_dispatcher)
