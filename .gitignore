@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.python-version
+
+# AstrBot/runtime data
+data/
+plugin_data/
+audio_cache/
+clone_cache/
+
+# Local environment
+.env
+.venv/
+venv/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

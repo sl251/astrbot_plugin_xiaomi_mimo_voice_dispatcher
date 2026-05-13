@@ -1,0 +1,78 @@
+{
+  "api_key": {
+    "type": "string",
+    "title": "MiMo API Key",
+    "description": "MiMo API Key",
+    "default": ""
+  },
+  "api_base": {
+    "type": "string",
+    "title": "接口地址",
+    "description": "MiMo API 接口地址",
+    "default": "https://token-plan-cn.xiaomimimo.com/v1"
+  },
+  "request_timeout_seconds": {
+    "type": "int",
+    "title": "请求超时时间",
+    "description": "调用 MiMo API 的读取超时时间，单位秒。建议 30-90。",
+    "default": 60
+  },
+  "admin_ids": {
+    "type": "string",
+    "title": "管理员 ID",
+    "description": "允许使用管理命令的用户 ID，多个 ID 用英文逗号分隔。",
+    "default": ""
+  },
+  "builtin_model": {
+    "type": "string",
+    "title": "普通 TTS 模型",
+    "description": "builtin 模式使用的 MiMo 模型 ID",
+    "default": "mimo-v2.5-tts"
+  },
+  "voice_design_model": {
+    "type": "string",
+    "title": "音色设计模型",
+    "description": "voice_design 模式使用的 MiMo 模型 ID",
+    "default": "mimo-v2.5-tts-voicedesign"
+  },
+  "voice_clone_model": {
+    "type": "string",
+    "title": "声音克隆模型",
+    "description": "voice_clone 模式使用的 MiMo 模型 ID",
+    "default": "mimo-v2.5-tts-voiceclone"
+  },
+  "builtin_voice": {
+    "type": "string",
+    "title": "默认音色",
+    "description": "builtin 模式默认内置音色",
+    "default": "mimo_default",
+    "enum": [
+      "mimo_default",
+      "冰糖",
+      "茉莉",
+      "苏打",
+      "白桦",
+      "Mia",
+      "Chloe",
+      "Milo",
+      "Dean"
+    ],
+    "options": [
+      "mimo_default",
+      "冰糖",
+      "茉莉",
+      "苏打",
+      "白桦",
+      "Mia",
+      "Chloe",
+      "Milo",
+      "Dean"
+    ]
+  },
+  "voice_clone_sample_path": {
+    "type": "string",
+    "title": "克隆样本路径",
+    "description": "voice_clone 模式默认本地克隆样本路径，支持 mp3/wav/m4a/flac/ogg。",
+    "default": ""
+  }
+}

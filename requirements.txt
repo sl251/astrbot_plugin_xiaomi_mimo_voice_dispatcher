@@ -1,0 +1,5 @@
+# Runtime dependencies: Python standard library only.
+#
+# Optional system/tooling dependencies:
+# - ffmpeg: required only when transcoding uncommon clone sample formats.
+# - pysilk: optional Python package for SILK clone sample decoding.
