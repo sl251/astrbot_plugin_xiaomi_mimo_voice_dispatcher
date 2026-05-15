@@ -39,9 +39,11 @@ DEFAULT_TIMEOUT = 60
 DEFAULT_AUDIO_FORMAT = "wav"
 DEFAULT_BUILTIN_VOICE = "mimo_default"
 DEFAULT_TEST_TEXT = "这是一条来自 Xiaomi MiMo TTS 工具插件的测试语音。"
+DEFAULT_PREFER_CLONE_WHEN_CONFIGURED = True
 DEFAULT_AUDIO_RETENTION_HOURS = 24
 DEFAULT_MAX_CLONE_SAMPLE_MB = 7
 ALLOWED_CLONE_SUFFIXES = {".mp3", ".wav", ".m4a", ".flac", ".ogg"}
+DISCOVERABLE_CLONE_SUFFIXES = ALLOWED_CLONE_SUFFIXES | {".silk", ".amr"}
 INLINE_AUDIO_LOG_RE = re.compile(
     r"(data:audio/[-+.a-zA-Z0-9]+;base64,|base64://)([A-Za-z0-9+/=\r\n]{128,})"
 )
@@ -387,6 +389,12 @@ class Main(star.Star):
     def _default_send_text(self) -> bool:
         return False
 
+    def _prefer_clone_when_configured(self) -> bool:
+        return _safe_bool(
+            self.config.get("prefer_clone_when_sample_configured"),
+            DEFAULT_PREFER_CLONE_WHEN_CONFIGURED,
+        )
+
     def _open_direct(self, request: urllib.request.Request):
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         return opener.open(request, timeout=self._timeout())
@@ -569,6 +577,38 @@ class Main(star.Star):
             return configured
         raise ValueError("voice_clone 模式需要先在插件配置里填写 voice_clone_sample_path，或在工具调用里显式传入本地 clone_sample 路径。")
 
+    def _has_clone_sample_for_event(self, event: AstrMessageEvent) -> bool:
+        try:
+            self._resolve_session_clone_sample_path(event)
+            return True
+        except ValueError:
+            return False
+
+    def _select_clone_sample_from_directory(self, directory: Path) -> Path:
+        resolved_dir = directory.expanduser().resolve()
+        if not resolved_dir.exists() or not resolved_dir.is_dir():
+            raise ValueError(f"voice clone 样本目录不存在: {resolved_dir}")
+
+        candidates = [
+            path
+            for path in resolved_dir.iterdir()
+            if path.is_file() and path.suffix.lower() in DISCOVERABLE_CLONE_SUFFIXES
+        ]
+        if not candidates:
+            raise ValueError(f"voice clone 样本目录里没有可用音频文件: {resolved_dir}")
+
+        candidates.sort(key=lambda path: (path.stat().st_mtime, path.name.lower()), reverse=True)
+        selected = candidates[0]
+        if len(candidates) > 1:
+            logger.info(f"[MiMo TTS] selected newest clone sample from directory: {selected}")
+        return selected
+
+    def _resolve_clone_sample_path_value(self, raw_value: str) -> Path:
+        sample_path = Path(str(raw_value or "").strip()).expanduser()
+        if sample_path.is_dir():
+            sample_path = self._select_clone_sample_from_directory(sample_path)
+        return sample_path
+
     def _transcode_clone_sample_to_wav(self, source_path: Path, target_dir: Path | None = None) -> Path:
         resolved_source = source_path.expanduser().resolve()
         if not resolved_source.exists() or not resolved_source.is_file():
@@ -612,6 +652,8 @@ class Main(star.Star):
         target_dir: Path | None = None,
     ) -> Path:
         resolved_source = source_path.expanduser().resolve()
+        if resolved_source.is_dir():
+            resolved_source = self._select_clone_sample_from_directory(resolved_source)
         if resolved_source.suffix.lower() in ALLOWED_CLONE_SUFFIXES:
             return resolved_source
         return self._transcode_clone_sample_to_wav(resolved_source, target_dir=target_dir)
@@ -624,7 +666,7 @@ class Main(star.Star):
         if raw_value.startswith("data:") and ";base64," in raw_value:
             raise ValueError("clone_sample 只支持本地音频文件路径；请不要传入 data URI 或 base64 内容。")
 
-        sample_path = Path(raw_value).expanduser()
+        sample_path = self._resolve_clone_sample_path_value(raw_value)
         sample_path = self._ensure_supported_clone_sample_path(sample_path)
         if not sample_path.is_absolute():
             sample_path = Path.cwd() / sample_path
@@ -669,6 +711,14 @@ class Main(star.Star):
         audio_format: str,
     ) -> dict[str, Any]:
         normalized_mode = _normalize_mode(mode)
+        if (
+            normalized_mode == "builtin"
+            and not str(voice or "").strip()
+            and (str(clone_sample or "").strip() or self._prefer_clone_when_configured())
+            and (str(clone_sample or "").strip() or self._has_clone_sample_for_event(event))
+        ):
+            normalized_mode = "voice_clone"
+
         if normalized_mode not in MODE_TO_MODEL_CONFIG:
             raise ValueError("mode 仅支持 builtin、voice_design、voice_clone。")
 
@@ -868,8 +918,9 @@ class Main(star.Star):
             if clone_sample:
                 hint += (
                     "\n[System Notice] A preset voice-clone sample is configured in voice_clone_sample_path. "
-                    "If the user asks you to use that voice, call mimo_tts_speak with mode=voice_clone. "
-                    "You do not need to pass clone_sample unless the user explicitly wants a different sample."
+                    "Use mode=voice_clone for normal spoken replies unless the user explicitly asks for a built-in voice. "
+                    "You do not need to pass clone_sample unless the user explicitly wants a different sample. "
+                    "If voice_clone_sample_path is a directory, the plugin will use the newest supported audio file in it."
                 )
         else:
             hint = (
@@ -902,6 +953,7 @@ class Main(star.Star):
             f"API Key 已配置: {'是' if bool(self._api_key()) else '否'}\n"
             f"默认内置音色: {self._default_builtin_voice()}\n"
             f"已配置默认 voice clone 样本: {'是' if bool(clone_sample) else '否'}\n"
+            f"配置样本后默认使用克隆音色: {'是' if self._prefer_clone_when_configured() else '否'}\n"
             "会话自动绑定样本: 已禁用"
         )
         yield event.plain_result(message)
@@ -924,7 +976,7 @@ class Main(star.Star):
             return
 
         try:
-            prepared_path = self._ensure_supported_clone_sample_path(Path(raw_path))
+            prepared_path = self._ensure_supported_clone_sample_path(self._resolve_clone_sample_path_value(raw_path))
             sample_bytes = prepared_path.read_bytes()
             if len(sample_bytes) > self._max_clone_sample_bytes():
                 yield event.plain_result("voice clone 样本过大，请换一个更短的 mp3/wav 音频。")

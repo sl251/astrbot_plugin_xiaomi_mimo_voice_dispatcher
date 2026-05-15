@@ -1,6 +1,6 @@
 name: astrbot_plugin_xiaomi_mimo_voice_dispatcher
 author: sl251
-version: 0.3.0
+version: 0.3.1
 astrbot_version: ">=4.9.2"
 description: "为 AstrBot 提供 Xiaomi MiMo TTS 语音合成能力的函数工具插件"
 desc: "为 AstrBot 提供 Xiaomi MiMo TTS 语音合成能力的函数工具插件"
@@ -58,7 +58,11 @@ configs:
       - "Chloe"
       - "Milo"
       - "Dean"
+  prefer_clone_when_sample_configured:
+    type: bool
+    default: true
+    description: "填写克隆样本路径后，普通语音调用默认使用 voice_clone；明确指定内置音色时仍使用内置音色"
   voice_clone_sample_path:
     type: str
     default: ""
-    description: "voice_clone 模式默认本地克隆样本路径"
+    description: "voice_clone 模式默认本地克隆样本路径，可填写单个音频文件或文件夹"

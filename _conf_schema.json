@@ -69,10 +69,16 @@
       "Dean"
     ]
   },
+  "prefer_clone_when_sample_configured": {
+    "type": "bool",
+    "title": "配置样本后默认使用克隆音色",
+    "description": "开启后，只要填写了克隆样本路径，普通语音调用会默认使用 voice_clone；模型明确指定内置音色时仍会使用内置音色。",
+    "default": true
+  },
   "voice_clone_sample_path": {
     "type": "string",
     "title": "克隆样本路径",
-    "description": "voice_clone 模式默认本地克隆样本路径，支持 mp3/wav/m4a/flac/ogg。",
+    "description": "voice_clone 模式默认本地克隆样本路径，可以填写单个音频文件，也可以填写文件夹；文件夹会自动使用最新的 mp3/wav/m4a/flac/ogg 样本。",
     "default": ""
   }
 }

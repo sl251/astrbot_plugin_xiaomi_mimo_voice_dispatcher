@@ -34,8 +34,9 @@
 
 
 * **默认音色/样本**:
-* `builtin_voice`: `builtin` 模式的默认内置音色名称。
-* `voice_clone_sample_path`: `voice_clone` 模式的默认本地样本路径（支持 `mp3`, `wav`, `m4a`, `flac`, `ogg`）。
+* `builtin_voice`: `builtin` 模式的默认内置音色名称，只影响内置音色，不会自动使用克隆样本。
+* `prefer_clone_when_sample_configured`: 填写克隆样本路径后，普通语音调用默认使用 `voice_clone`。模型明确指定内置音色时仍会使用 `builtin`。
+* `voice_clone_sample_path`: `voice_clone` 模式的默认本地样本路径。可以填写单个音频文件，也可以填写文件夹；填写文件夹时会自动使用其中最新的 `mp3`, `wav`, `m4a`, `flac`, `ogg` 样本。
 
 
 
@@ -90,14 +91,21 @@ mimo_tts_speak(mode="builtin", text="要说的话")
 
 ### 2. 使用全局克隆样本 (`voice_clone`)
 
-准备好本地音频文件，在插件设置中配置路径：
+准备好本地音频文件，在插件设置中配置路径。可以填单个文件：
 
 ```ini
 voice_clone_sample_path = D:\voice\bot_sample.wav
 
 ```
 
-模型调用：
+也可以填文件夹，插件会自动选择里面最新的支持格式音频：
+
+```ini
+voice_clone_sample_path = D:\voice
+
+```
+
+默认情况下，只要配置了 `voice_clone_sample_path`，模型普通调用语音工具时会优先使用这个克隆样本。仍然也可以显式调用：
 
 ```python
 mimo_tts_speak(mode="voice_clone", text="要说的话")
