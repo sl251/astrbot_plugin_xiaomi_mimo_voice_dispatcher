@@ -15,6 +15,7 @@ import uuid
 import wave
 from dataclasses import dataclass, field
 from pathlib import Path
+from sys import maxsize
 from typing import Any
 
 import astrbot.api.message_components as Comp
@@ -413,6 +414,81 @@ class Main(star.Star):
             return raw
         logger.warning(f"[MiMo TTS] unknown builtin voice {raw!r}, fallback to {DEFAULT_BUILTIN_VOICE}")
         return DEFAULT_BUILTIN_VOICE
+
+    def _coerce_record_to_convertible_source(self, record: Any) -> bool:
+        for attr in ("file", "path", "url"):
+            value = str(getattr(record, attr, "") or "").strip()
+            if not value:
+                continue
+
+            lowered = value.lower()
+            if lowered.startswith(("http://", "https://", "base64://")):
+                record.file = value
+                return True
+
+            if lowered.startswith("file:///"):
+                file_path = Path(value[8:]).expanduser()
+                if file_path.exists() and file_path.is_file():
+                    record.file = value
+                    return True
+                continue
+
+            file_path = Path(value).expanduser()
+            if file_path.exists() and file_path.is_file():
+                resolved = str(file_path.resolve())
+                record.file = resolved
+                record.path = resolved
+                return True
+
+        return False
+
+    def _sanitize_quoted_record_components(self, event: AstrMessageEvent) -> None:
+        message_obj = getattr(event, "message_obj", None)
+        message_chain = getattr(message_obj, "message", None)
+        if not isinstance(message_chain, list):
+            return
+
+        reply_cls = getattr(Comp, "Reply", None)
+        record_cls = getattr(Comp, "Record", None)
+        plain_cls = getattr(Comp, "Plain", None)
+        if reply_cls is None or record_cls is None:
+            return
+
+        for component in message_chain:
+            if not isinstance(component, reply_cls):
+                continue
+
+            quoted_chain = getattr(component, "chain", None)
+            if not isinstance(quoted_chain, list):
+                continue
+
+            sanitized_chain = []
+            dropped_record_count = 0
+            for quoted_component in quoted_chain:
+                if isinstance(quoted_component, record_cls):
+                    if self._coerce_record_to_convertible_source(quoted_component):
+                        sanitized_chain.append(quoted_component)
+                    else:
+                        dropped_record_count += 1
+                    continue
+                sanitized_chain.append(quoted_component)
+
+            if dropped_record_count <= 0:
+                continue
+
+            placeholder = "[引用了一条语音消息]"
+            if plain_cls is not None:
+                sanitized_chain.append(plain_cls(text=placeholder))
+
+            if not str(getattr(component, "message_str", "") or "").strip():
+                component.message_str = placeholder
+            if not str(getattr(component, "text", "") or "").strip():
+                component.text = placeholder
+
+            component.chain = sanitized_chain
+            logger.info(
+                f"[MiMo TTS] sanitized {dropped_record_count} unresolved quoted voice record(s)."
+            )
 
     def _configured_admin_ids(self) -> set[str]:
         raw = (
@@ -859,6 +935,10 @@ class Main(star.Star):
         if not target_path.exists() or target_path.stat().st_size <= 0:
             raise RuntimeError("failed to materialize decoded silk clone sample as wav")
         return target_path
+
+    @filter.event_message_type(filter.EventMessageType.ALL, priority=maxsize - 10)
+    async def sanitize_quoted_voice_records(self, event: AstrMessageEvent):
+        self._sanitize_quoted_record_components(event)
 
     async def run_mimo_tts(
         self,

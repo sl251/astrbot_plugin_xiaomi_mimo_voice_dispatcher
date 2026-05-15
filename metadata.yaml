@@ -1,6 +1,6 @@
 name: astrbot_plugin_xiaomi_mimo_voice_dispatcher
 author: sl251
-version: 0.3.1
+version: 0.3.2
 astrbot_version: ">=4.9.2"
 description: "为 AstrBot 提供 Xiaomi MiMo TTS 语音合成能力的函数工具插件"
 desc: "为 AstrBot 提供 Xiaomi MiMo TTS 语音合成能力的函数工具插件"
